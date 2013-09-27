@@ -1,0 +1,20 @@
+from sipyutils import C			# win32com.client.constants
+
+def deleteICEattr(prim, attrs):
+	l = prim.ICEAttributes.GetAsText()
+	l = l.split(",")
+	for i in attrs:
+		if i in l:
+			print i
+			prim.RemoveICEAttribute(i)
+
+prim =Application.Selection(0).ActivePrimitive
+deleteICEattr(prim, ["gcVertex","gcFace"])
+			
+gc = Application.CreateGreenCoordinates()
+
+attr = prim.AddICEAttribute("gcVertex", C.siICENodeDataFloat, C.siICENodeStructureArray, C.siICENodeContextComponent0D  )
+attr.DataArray = gc[0]
+
+attr = prim.AddICEAttribute("gcFace", C.siICENodeDataFloat, C.siICENodeStructureArray, C.siICENodeContextComponent0D  )
+attr.DataArray = gc[1] 

@@ -1,0 +1,65 @@
+import math
+
+def pointsOnSphere(N):
+	N = float(N) # in case we got an int which we surely got 
+	pts = [[],[],[]]
+	inc = math.pi * (3 - math.sqrt(5)) 
+	off = 2 / N 
+	for k in range(0, int(N)): 
+		y = k * off - 1 + (off / 2) 
+		r = math.sqrt(1 - y*y) 
+		phi = k * inc 
+		pts[0].append(math.cos(phi)*r)
+		pts[1].append(y)
+		pts[2].append(math.sin(phi)*r)
+	return pts
+xsi = Application	
+
+c = xsi.Selection(1)
+cPrim = c.Activeprimitive
+cGeo = cPrim.Geometry
+d = xsi.Selection(0)
+dGeo = d.ActivePrimitive.Geometry
+dPoints = dGeo.Points
+
+nbSample = 64
+Samples =  pointsOnSphere(nbSample)
+PMVC = []
+area = math.pi*4/nbSample
+for p in dPoints:
+	w = [0]*cGeo.Points.Count
+	pos = p.Position
+	lPos = [pos.X,pos.Y,pos.Z]
+	posArray = [[lPos[i] for j in range(nbSample)] for i in range(3)]
+	loc = cGeo.GetRaycastIntersections( posArray, Samples,0 )
+	aI = cGeo.EvaluatePositions(loc)
+	aCoord = cGeo.GetTriangleWeightArray(loc)
+	ID = cGeo.GetTriangleVertexIndexArray( loc )
+	print "------------------"
+	for s in range(nbSample):
+		dist = XSIMath.CreateVector3(aI[0][s], aI[1][s], aI[2][s]) 
+		dist.SubInPlace(pos)
+		distScale = 1/dist.Length()*area
+		x=aCoord[0][s]*distScale
+		y=aCoord[1][s]*distScale
+		z=aCoord[2][s]*distScale
+		w[ID[0][s]]+=x
+		w[ID[1][s]]+=y
+		w[ID[2][s]]+=z
+	nW = []
+	tW = sum(w)
+	for i in w:
+		if i/tW < 0.000001:
+			nW.append(0.0)
+		else:
+			nW.append(i/tW)
+			print i/tW
+	PMVC.append(nW)
+attr = dGeo.AddIceAttribute("PMVC",4,2,2)
+attr.DataArray2D = PMVC
+		
+		
+
+	
+	
+
