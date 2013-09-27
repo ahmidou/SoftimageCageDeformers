@@ -1,0 +1,8 @@
+xsi = Application
+d = xsi.Selection(0)
+dGeo = d.ActivePrimitive.Geometry
+PMVC = xsi.CreatePMVCoordinates()
+attr = dGeo.AddIceAttribute("PMVCid",2,2,2)
+attr.DataArray2D = PMVC[0]
+attr = dGeo.AddIceAttribute("PMVC",4,2,2)
+attr.DataArray2D = PMVC[1]
