@@ -337,7 +337,7 @@ XSIPLUGINCALLBACK CStatus CreatePMVCoordinates_Execute( CRef& in_ctxt )
 			if (w[j]/tW > 0.000001)
 			{
 				pmvArray[i][k] = w[j]/tW;
-				pmvID[i][k] = LONG(k);
+				pmvID[i][k] = LONG(j);
 				k++;
 			}
     	}

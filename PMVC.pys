@@ -14,7 +14,7 @@ def pointsOnSphere(N):
 		pts[2].append(math.sin(phi)*r)
 	return pts
 xsi = Application	
-
+sparse = 1
 c = xsi.Selection(1)
 cPrim = c.Activeprimitive
 cGeo = cPrim.Geometry
@@ -24,7 +24,7 @@ dPoints = dGeo.Points
 
 nbSample = 64
 Samples =  pointsOnSphere(nbSample)
-PMVC = []
+PMVC = [[],[]]
 area = math.pi*4/nbSample
 for p in dPoints:
 	w = [0]*cGeo.Points.Count
@@ -35,7 +35,7 @@ for p in dPoints:
 	aI = cGeo.EvaluatePositions(loc)
 	aCoord = cGeo.GetTriangleWeightArray(loc)
 	ID = cGeo.GetTriangleVertexIndexArray( loc )
-	print "------------------"
+
 	for s in range(nbSample):
 		dist = XSIMath.CreateVector3(aI[0][s], aI[1][s], aI[2][s]) 
 		dist.SubInPlace(pos)
@@ -47,16 +47,28 @@ for p in dPoints:
 		w[ID[1][s]]+=y
 		w[ID[2][s]]+=z
 	nW = []
+	id = []
 	tW = sum(w)
-	for i in w:
-		if i/tW < 0.000001:
-			nW.append(0.0)
-		else:
-			nW.append(i/tW)
-			print i/tW
-	PMVC.append(nW)
+	if sparse == 0:
+		for i in w:
+			if i/tW < 0.000001:
+				nW.append(0.0)
+			else:
+				nW.append(i/tW)
+		PMVC[0].append(nW)
+	else:
+		j=0
+		for i in w:
+			if i/tW > 0.000001:
+				nW.append(i/tW)
+				id.append(j)
+			j+=1
+		PMVC[0].append(nW)
+		PMVC[1].append(id)
 attr = dGeo.AddIceAttribute("PMVC",4,2,2)
-attr.DataArray2D = PMVC
+attr.DataArray2D = PMVC[0]
+attr = dGeo.AddIceAttribute("PMVCid",2,2,2)
+attr.DataArray2D = PMVC[1]
 		
 		
 
