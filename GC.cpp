@@ -2,7 +2,7 @@
 /*                  GreenCoordinates Class CPP                    */
 /******************************************************************/
 
-#include "GreenCoordinates.h"
+#include "GC.h"
 
 /*********************************************************/
 /*   GreenCoordinates::GreenCoordinates(  )              */

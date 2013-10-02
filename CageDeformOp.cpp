@@ -11,6 +11,7 @@
 #ifndef linux
 #define WIN32_LEAN_AND_MEAN
 	#include <windows.h> // Needed for OpenGL on windows
+	typedef  UINT  uint;
 #endif
 
 #include <string.h>
@@ -34,10 +35,12 @@
 #include <xsi_iceattributedataarray.h>
 #include <xsi_iceattributedataarray2D.h>
 
-#include "GreenCoordinates.h"
-#include "PMVCoordinates.h"
+#include "GC.h"
+#include "PMVC.h"
 #include <xsi_pluginregistrar.h>
 #include <xsi_command.h>
+
+
 
 XSIPLUGINCALLBACK CStatus XSILoadPlugin( PluginRegistrar& in_reg )
 {
@@ -263,8 +266,6 @@ XSIPLUGINCALLBACK CStatus CreatePMVCoordinates_Execute( CRef& in_ctxt )
 	PMVCoordinates pmv;
 	CPointRefArray cPoints = cage.GetPoints();
 	CValueArray v(dPoints.GetCount());
-	vector<vector<float> > pmvArray(dPoints.GetCount(),vector<float>(cPoints.GetCount(),0.0));
-	vector<vector<LONG> > pmvID(dPoints.GetCount(),vector<LONG>(cPoints.GetCount(),0));
 	CVector3Array samples =pmv.pointsOnSphere(nbSamples);
 
 	double area = PI*4/nbSamples;
@@ -279,27 +280,25 @@ XSIPLUGINCALLBACK CStatus CreatePMVCoordinates_Execute( CRef& in_ctxt )
 		points[2][i]=pos[2];
 	}
 
+	/*	############################################# */
+	ICEAttribute PMVWeight(CValue(dGeo.AddICEAttribute("PMVWeight",siICENodeDataFloat ,siICENodeStructureArray,siICENodeContextComponent0D)));
+	ICEAttribute PMVID(CValue(dGeo.AddICEAttribute("PMVID",siICENodeDataLong ,siICENodeStructureArray,siICENodeContextComponent0D)));
 
-//	/*	############################################# */
-//	/*	############################################# */
-//	/*	############################################# */
-//	ICEAttribute PMVWeight(CValue(dGeo.AddICEAttribute("PMVWeight",siICENodeDataFloat ,siICENodeStructureArray,siICENodeContextComponent0D)));
-//	ICEAttribute PMVID(CValue(dGeo.AddICEAttribute("PMVID",siICENodeDataLong ,siICENodeStructureArray,siICENodeContextComponent0D)));
-//
-//	CICEAttributeDataArray2D< float > data2D;
-//	PMVWeight.GetDataArray2D( data2D );
-//	CICEAttributeDataArray2D< LONG > data2D1;
-//	PMVID.GetDataArray2D( data2D1 );
-//	/*	############################################# */
-//	CICEAttributeData2D<CString>::SetData(  X3DObject(objArray[0]), XSI::siICENodeDataString, "TestString", "hum!" );
-//	CICEAttributeData2D<float>::SetData(  X3DObject(objArray[0]), XSI::siICENodeDataFloat, "TestFloat", 5 );
-//
-//	/*	############################################# */
+	CICEAttributeDataArray2D< float > w2D;
+	PMVWeight.GetDataArray2D( w2D );
+	CICEAttributeDataArray2D< LONG > id2D;
+	PMVID.GetDataArray2D( id2D );
+	/*	############################################# */
 
 	#pragma omp parallel for
 	for (LONG i=0; i<dPoints.GetCount(); i++ )
 	{
-		vector<float> nia(cPoints.GetCount(),0);
+		CICEAttributeDataArray< float > wArray;
+        w2D.GetSubArray( i, wArray );
+		CICEAttributeDataArray< LONG > idArray;
+        id2D.GetSubArray( i, idArray );
+		CFloatArray pmvArray (cPoints.GetCount());
+		CLongArray pmvID (cPoints.GetCount());
 		vector<double> w(cPoints.GetCount(),0);
 		CVector3 pntPos = Point(dPoints[i]).GetPosition();
 		vector<double > posArray(nbSamples*3);
@@ -315,13 +314,13 @@ XSIPLUGINCALLBACK CStatus CreatePMVCoordinates_Execute( CRef& in_ctxt )
 			loc= cage.GetRaycastIntersections( nbSamples, (double*)&posArray[0], (double*)&samples[0], siSemiLineIntersection );
 		}
 		posArray.clear();
-		int locCount = loc.GetCount()*3;
-        double pos[locCount];
-        LONG triVtx[locCount];
-        float triWei[locCount];
-        cage.EvaluatePositions(loc, -1, 0, pos);
-        cage.GetTriangleVertexIndexArray(loc, -1, 0, triVtx);
-        cage.GetTriangleWeightArray(loc, -1, 0, triWei);
+		const LONG lCount = loc.GetCount()*3;
+        vector<double> pos(lCount);
+        vector<LONG> triVtx(lCount);
+        vector<float> triWei(lCount);
+        cage.EvaluatePositions(loc, -1, 0, &pos[0]);
+        cage.GetTriangleVertexIndexArray(loc, -1, 0, &triVtx[0]);
+        cage.GetTriangleWeightArray(loc, -1, 0, &triWei[0]);
     	for (int s=0; s<nbSamples; s++ )
 		{
     		CVector3 dist(pos[s*3]-pntPos[0], pos[s*3+1]-pntPos[1], pos[s*3+2]-pntPos[2]) ;
@@ -336,38 +335,20 @@ XSIPLUGINCALLBACK CStatus CreatePMVCoordinates_Execute( CRef& in_ctxt )
     	{
 			if (w[j]/tW > 0.000001)
 			{
-				pmvArray[i][k] = w[j]/tW;
-				pmvID[i][k] = LONG(j);
+				pmvArray[k] = w[j]/tW;
+				pmvID[k] = LONG(j);
 				k++;
 			}
     	}
-    	pmvArray[i].resize(k);
-    	pmvID[i].resize(k);
+    	pmvArray.Resize(k);
+		wArray.SetArray(pmvArray.GetArray(),pmvArray.GetCount());
+
+		pmvID.Resize(k);
+		idArray.SetArray(pmvID.GetArray(),pmvID.GetCount());
     	w.clear();
 	}
 
-	//sparse weights
-	CValueArray PMV(2);
-	CValueArray pntPMV;
-	CValueArray pntID;
-	for (LONG i=0; i<dPoints.GetCount(); i++ )
-	{
-		CValueArray pmvWeigth;
-		CValueArray weigthIDs;
-		for (uint j=0; j<pmvArray[i].size(); j++ )
-		{
-				pmvWeigth.Add(pmvArray[i][j]);
-				weigthIDs.Add(pmvID[i][j]);
-		}
-		pntPMV.Add(pmvWeigth);
-		pntID.Add(weigthIDs);
-	}
-	PMV[0]= pntID;
-	PMV[1]= pntPMV;
-
-	ctxt.PutAttribute( L"ReturnValue", CValue(PMV) );
-	pmvArray.clear();
-	pmvID.clear();
+	ctxt.PutAttribute( L"ReturnValue", CValue("") );
 	samples.Clear();
 	points.clear();
 	return CStatus::OK;
