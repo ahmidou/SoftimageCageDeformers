@@ -61,7 +61,7 @@ double PMVCoordinates::sum(const std::vector<double>& v)
 {
 	double sum = 0.0;
 	#pragma omp parallel for reduction(+:sum)
-	for(size_t ii=0; ii< v.size(); ++ii)
+	for(int ii=0; ii< v.size(); ++ii)
 	{
 		sum += v[ii];
 	}

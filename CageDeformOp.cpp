@@ -134,118 +134,7 @@ XSIPLUGINCALLBACK CStatus CreatePMVCoordinates_Init( CRef& in_ctxt )
 }
 
 
-//template < class T >
-//class CICEAttributeData2D
-//{
-//    public:
-//    static void Log( ICEAttribute& attr )
-//    {
-//        Application xsi;
-//        xsi.LogMessage( L"*******************************************************************" );
-//        xsi.LogMessage( L"Name: " + attr.GetName() );
-//        xsi.LogMessage( L"DataType: " + CString(attr.GetDataType()) );
-//
-//        CICEAttributeDataArray2D< T > data2D;
-//        attr.GetDataArray2D( data2D );
-//
-//        for( ULONG i=0; i<data2D.GetCount( ); i++ )
-//        {
-//            CICEAttributeDataArray< T > data;
-//            data2D.GetSubArray( i, data );
-//            if (data.GetCount( )>0)
-//             {
-//             	xsi.LogMessage( "-----------pnt : "+CString( i ) );
-//             }
-//            for( ULONG j=0; j<data.GetCount( ); j++ )
-//            {
-//                xsi.LogMessage( CString( j ) + "   " + CString( data[ j ] ) );
-//            }
-//        }
-//    }
-//    static void SetData( const X3DObject & in_Obj, XSI::siICENodeDataType in_DataType, const CString& in_csDataName, const T in_Value )
-//    {
-//        ICEAttribute attr = in_Obj.GetActivePrimitive().GetGeometry().AddICEAttribute( in_csDataName, in_DataType, XSI::siICENodeStructureArray, XSI::siICENodeContextComponent0D );
-//
-//        CICEAttributeDataArray2D< T > data2D;
-//        attr.GetDataArray2D( data2D );
-//        {
-//			CICEAttributeDataArray< T > data;
-//			const ULONG subArraySize = 6; // This can be any number.
-//			data2D.ResizeSubArray( 0 ,subArraySize ,data );
-//
-//			T l_Values[subArraySize] = { in_Value, in_Value, in_Value, in_Value, in_Value, in_Value };
-//			memcpy( &data[0], &l_Values[0], subArraySize * sizeof(T) );
-//        }
-//
-//        {
-// 			CICEAttributeDataArray< T > data;
-// 			const ULONG subArraySize = 6; // This can be any number.
-// 			data2D.ResizeSubArray( 1 ,subArraySize ,data );
-//
-// 			T l_Values[subArraySize] = { -in_Value, -in_Value, -in_Value, -in_Value, -in_Value, -in_Value };
-// 			memcpy( &data[0], &l_Values[0], subArraySize * sizeof(T) );
-//         }
-//        CICEAttributeData2D<T>::Log( attr );
-//    }
-//
-//};
-//template < >
-//class CICEAttributeData2D< XSI::CString >
-//{
-//    public:
-//    static void Log( ICEAttribute& attr )
-//    {
-//        CICEAttributeDataArray2DString data2D;
-//        attr.GetDataArray2D( data2D );
-//
-//        Application xsi;
-//        for( ULONG i=0; i<data2D.GetCount( ); i++ )
-//        {
-//
-//            CICEAttributeDataArrayString data;
-//            data2D.GetSubArray( i, data );
-//            if (data.GetCount( )>0)
-//            {
-//            	xsi.LogMessage( "-----------pnt : "+CString( i ) );
-//            }
-//            for( ULONG j=0; j<data.GetCount( ); j++ )
-//            {
-//                xsi.LogMessage( CString( i ) + " , " + CString( j ) + " : " +data[ j ] );
-//            }
-//        }
-//    }
-//
-//    static void SetData( const X3DObject & in_Cone, XSI::siICENodeDataType in_DataType, const CString& in_csDataName, const XSI::CString in_Value )
-//    {
-//        ICEAttribute attr = in_Cone.GetActivePrimitive().GetGeometry().AddICEAttribute( in_csDataName, in_DataType, XSI::siICENodeStructureArray, XSI::siICENodeContextComponent0D );
-//
-//        CICEAttributeDataArray2DString data2D;
-//        attr.GetDataArray2D( data2D );
-//
-////        {
-////            CICEAttributeDataArrayString data;
-////            ULONG subArraySize = 6; // This can be any number.
-////            data2D.ResizeSubArray( 0, subArraySize, data );
-////
-////            data.SetData(0, in_Value);
-////            data.SetData(2, "frrrr");
-////            data.SetData(4, in_Value);
-////        }
-//        for( ULONG j=0; j<3; j++ )
-//        {
-//            CICEAttributeDataArrayString data;
-//            ULONG subArraySize = 6; // This can be any number.
-//            data2D.ResizeSubArray( j, subArraySize, data );
-//
-//            data.SetData(0, "AAA");
-//            data.SetData(2, "BBB");
-//            data.SetData(4, "CCC");
-//        }
-//
-//        CICEAttributeData2D<XSI::CString>::Log( attr );
-//    }
-//
-//};
+
 
 XSIPLUGINCALLBACK CStatus CreatePMVCoordinates_Execute( CRef& in_ctxt )
 {
@@ -258,7 +147,7 @@ XSIPLUGINCALLBACK CStatus CreatePMVCoordinates_Execute( CRef& in_ctxt )
 
 	Geometry dGeo = X3DObject(objArray[0]).GetActivePrimitive().GetGeometry();
 	CPointRefArray dPoints = dGeo.GetPoints();
-	int nbSamples=64;
+	int nbSamples=128;
 	PolygonMesh cage;
 	cage = X3DObject(objArray[1]).GetActivePrimitive().GetGeometry();
 	cage.SetupPointLocatorQueries(siClosestSurfaceRaycastIntersection,0,-1,0,nbSamples);
@@ -323,11 +212,14 @@ XSIPLUGINCALLBACK CStatus CreatePMVCoordinates_Execute( CRef& in_ctxt )
         cage.GetTriangleWeightArray(loc, -1, 0, &triWei[0]);
     	for (int s=0; s<nbSamples; s++ )
 		{
-    		CVector3 dist(pos[s*3]-pntPos[0], pos[s*3+1]-pntPos[1], pos[s*3+2]-pntPos[2]) ;
-    		double distScale = 1.0/dist.GetLength()*area;
-    		w[triVtx[s*3]]+= triWei[s*3]*distScale;
-    		w[triVtx[s*3+1]]+= triWei[s*3+1]*distScale;
-    		w[triVtx[s*3+2]]+= triWei[s*3+2]*distScale;
+			if(triVtx[s*3] != -1)
+			{
+				CVector3 dist(pos[s*3]-pntPos[0], pos[s*3+1]-pntPos[1], pos[s*3+2]-pntPos[2]) ;
+    			double distScale = 1.0/dist.GetLength()*area;
+    			w[triVtx[s*3]]+= triWei[s*3]*distScale;
+    			w[triVtx[s*3+1]]+= triWei[s*3+1]*distScale;
+    			w[triVtx[s*3+2]]+= triWei[s*3+2]*distScale;
+			}
 		}
 		double tW = pmv.sum(w);
 		uint k=0;
@@ -340,17 +232,22 @@ XSIPLUGINCALLBACK CStatus CreatePMVCoordinates_Execute( CRef& in_ctxt )
 				k++;
 			}
     	}
+		pmvArray.Resize(0); //test
     	pmvArray.Resize(k);
 		wArray.SetArray(pmvArray.GetArray(),pmvArray.GetCount());
 
+		pmvID.Resize(0);
 		pmvID.Resize(k);
 		idArray.SetArray(pmvID.GetArray(),pmvID.GetCount());
     	w.clear();
+		pmvID.Clear();
+		pmvArray.Clear();
 	}
 
 	ctxt.PutAttribute( L"ReturnValue", CValue("") );
 	samples.Clear();
 	points.clear();
+	
 	return CStatus::OK;
 }
 

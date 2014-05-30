@@ -13,6 +13,7 @@ def pointsOnSphere(N):
 		pts[1].append(y)
 		pts[2].append(math.sin(phi)*r)
 	return pts
+	
 xsi = Application	
 sparse = 1
 c = xsi.Selection(1)
@@ -21,6 +22,9 @@ cGeo = cPrim.Geometry
 d = xsi.Selection(0)
 dGeo = d.ActivePrimitive.Geometry
 dPoints = dGeo.Points
+
+#dGeo.RemoveICEAttribute("PMVWeight")
+#dGeo.RemoveICEAttribute("PMVid")
 
 nbSample = 64
 Samples =  pointsOnSphere(nbSample)
@@ -35,17 +39,17 @@ for p in dPoints:
 	aI = cGeo.EvaluatePositions(loc)
 	aCoord = cGeo.GetTriangleWeightArray(loc)
 	ID = cGeo.GetTriangleVertexIndexArray( loc )
-
 	for s in range(nbSample):
-		dist = XSIMath.CreateVector3(aI[0][s], aI[1][s], aI[2][s]) 
-		dist.SubInPlace(pos)
-		distScale = 1/dist.Length()*area
-		x=aCoord[0][s]*distScale
-		y=aCoord[1][s]*distScale
-		z=aCoord[2][s]*distScale
-		w[ID[0][s]]+=x
-		w[ID[1][s]]+=y
-		w[ID[2][s]]+=z
+		if ID[0][s] != -1:
+			dist = XSIMath.CreateVector3(aI[0][s], aI[1][s], aI[2][s]) 
+			dist.SubInPlace(pos)
+			distScale = 1/dist.Length()*area
+			x=aCoord[0][s]*distScale
+			y=aCoord[1][s]*distScale
+			z=aCoord[2][s]*distScale
+			w[ID[0][s]]+=x
+			w[ID[1][s]]+=y  
+			w[ID[2][s]]+=z
 	nW = []
 	id = []
 	tW = sum(w)
@@ -65,9 +69,9 @@ for p in dPoints:
 			j+=1
 		PMVC[0].append(nW)
 		PMVC[1].append(id)
-attr = dGeo.AddIceAttribute("PMVC",4,2,2)
+attr = dGeo.AddIceAttribute("PMVWeight",4,2,2)
 attr.DataArray2D = PMVC[0]
-attr = dGeo.AddIceAttribute("PMVCid",2,2,2)
+attr = dGeo.AddIceAttribute("PMVID",2,2,2)
 attr.DataArray2D = PMVC[1]
 		
 		
