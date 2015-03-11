@@ -147,7 +147,7 @@ XSIPLUGINCALLBACK CStatus CreatePMVCoordinates_Execute( CRef& in_ctxt )
 
 	Geometry dGeo = X3DObject(objArray[0]).GetActivePrimitive().GetGeometry();
 	CPointRefArray dPoints = dGeo.GetPoints();
-	int nbSamples=128;
+	int nbSamples=64;
 	PolygonMesh cage;
 	cage = X3DObject(objArray[1]).GetActivePrimitive().GetGeometry();
 	cage.SetupPointLocatorQueries(siClosestSurfaceRaycastIntersection,0,-1,0,nbSamples);
@@ -169,25 +169,20 @@ XSIPLUGINCALLBACK CStatus CreatePMVCoordinates_Execute( CRef& in_ctxt )
 		points[2][i]=pos[2];
 	}
 
-	/*	############################################# */
-	ICEAttribute PMVWeight(CValue(dGeo.AddICEAttribute("PMVWeight",siICENodeDataFloat ,siICENodeStructureArray,siICENodeContextComponent0D)));
-	ICEAttribute PMVID(CValue(dGeo.AddICEAttribute("PMVID",siICENodeDataLong ,siICENodeStructureArray,siICENodeContextComponent0D)));
+  vector<vector<float>> pmvArray2D;
+  pmvArray2D.resize(dPoints.GetCount());
+  vector<vector<LONG>> pmvID2D;
+  pmvID2D.resize(dPoints.GetCount());
+  vector<ULONG> subArraySizes;
+  subArraySizes.resize(dPoints.GetCount());
 
-	CICEAttributeDataArray2D< float > w2D;
-	PMVWeight.GetDataArray2D( w2D );
-	CICEAttributeDataArray2D< LONG > id2D;
-	PMVID.GetDataArray2D( id2D );
-	/*	############################################# */
+  uint64_t start = ns();
 
 	#pragma omp parallel for
 	for (LONG i=0; i<dPoints.GetCount(); i++ )
-	{
-		CICEAttributeDataArray< float > wArray;
-        w2D.GetSubArray( i, wArray );
-		CICEAttributeDataArray< LONG > idArray;
-        id2D.GetSubArray( i, idArray );
-		CFloatArray pmvArray (cPoints.GetCount());
-		CLongArray pmvID (cPoints.GetCount());
+	{	
+		vector<float> pmvArray (cPoints.GetCount());
+		vector<LONG> pmvID (cPoints.GetCount());
 		vector<double> w(cPoints.GetCount(),0);
 		CVector3 pntPos = Point(dPoints[i]).GetPosition();
 		vector<double > posArray(nbSamples*3);
@@ -223,28 +218,77 @@ XSIPLUGINCALLBACK CStatus CreatePMVCoordinates_Execute( CRef& in_ctxt )
 		}
 		double tW = pmv.sum(w);
 		uint k=0;
-    	for (uint j=0; j<w.size(); j++ )
-    	{
+    for (uint j=0; j<w.size(); j++ )
+    {
 			if (w[j]/tW > 0.000001)
 			{
 				pmvArray[k] = w[j]/tW;
 				pmvID[k] = LONG(j);
 				k++;
 			}
-    	}
-		pmvArray.Resize(0); //test
-    	pmvArray.Resize(k);
-		wArray.SetArray(pmvArray.GetArray(),pmvArray.GetCount());
+    }
+		//pmvArray.Resize(0); //test
+    pmvArray.resize(k);
+		//pmvID.Resize(0);
+		pmvID.resize(k);
 
-		pmvID.Resize(0);
-		pmvID.Resize(k);
-		idArray.SetArray(pmvID.GetArray(),pmvID.GetCount());
-    	w.clear();
-		pmvID.Clear();
-		pmvArray.Clear();
+    pmvArray2D[i] = pmvArray;
+    pmvID2D[i] = pmvID;
+    subArraySizes[i] = k;
+
+    w.clear();
+		pmvID.clear();
+		pmvArray.clear();
 	}
+  uint64_t end = ns();
+  app.LogMessage("coordinates generation: " + CString(1.0f/(end-start)) + " seconds");
+
+  start = ns();
+
+  // Set the ICE attributes
+  CRefArray attr = dGeo.GetICEAttributes();
+  ICEAttribute PMVWeight;
+  ICEAttribute PMVID;
+  if (attr.GetItem("PMVWeight").IsValid())
+    PMVWeight = (dGeo.GetICEAttributeFromName( L"PMVWeight" ));
+  else
+	  PMVWeight = (CValue(dGeo.AddICEAttribute("PMVWeight",siICENodeDataFloat ,siICENodeStructureArray,siICENodeContextComponent0D)));
+
+  if (attr.GetItem("PMVWeight").IsValid())
+    PMVID = (dGeo.GetICEAttributeFromName( L"PMVID" ));
+  else
+	  PMVID = (CValue(dGeo.AddICEAttribute("PMVID",siICENodeDataLong ,siICENodeStructureArray,siICENodeContextComponent0D)));
+
+  //ICEAttribute PMVWeight(CValue(dGeo.AddICEAttribute("PMVWeight",siICENodeDataFloat ,siICENodeStructureArray,siICENodeContextComponent0D)));
+	//ICEAttribute PMVID(CValue(dGeo.AddICEAttribute("PMVID",siICENodeDataLong ,siICENodeStructureArray,siICENodeContextComponent0D)));
+
+	CICEAttributeDataArray2D< float > w2D;
+	PMVWeight.GetDataArray2D( w2D );
+	CICEAttributeDataArray2D< LONG > id2D;
+	PMVID.GetDataArray2D( id2D );
+  
+	for (LONG i=0; i<dPoints.GetCount(); i++ )
+	{	
+
+    CICEAttributeDataArray< float > wArray;
+    CICEAttributeDataArray< LONG > idArray;
+
+    w2D.GetSubArray( i, wArray );
+    id2D.GetSubArray( i, idArray );
+
+		wArray.SetArray(&pmvArray2D[i][0], pmvArray2D[i].size());
+		idArray.SetArray(&pmvID2D[i][0], pmvID2D[i].size());
+  }
+  //w2D.SetArray2D((const float**)&pmvArray2D[0], pmvArray2D.size(), &subArraySizes[0]);
+  //id2D.SetArray2D((const LONG**)&pmvID2D[0], pmvID2D.size(), &subArraySizes[0]);
+
+  end = ns();
+  app.LogMessage("ICE attr tranfer: " + CString(1.0f/(end-start)) + " seconds");
 
 	ctxt.PutAttribute( L"ReturnValue", CValue("") );
+  pmvID2D.clear();
+	pmvArray2D.clear();
+  subArraySizes.clear();
 	samples.Clear();
 	points.clear();
 	
